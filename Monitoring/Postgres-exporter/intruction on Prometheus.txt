@@ -1,0 +1,10 @@
+1.docker exec -it prometheus vi /etc/prometheus/prometheus.yml
+
+2. cd /grid/0/prometheus/config/prometheus.yml
+
+  - job_name: 'postgres_exporter'
+   # scarpe_interval: 5s
+
+    static_configs:
+      - targets:
+        - 'ks-dmp45.kyivstar.ua:9087'

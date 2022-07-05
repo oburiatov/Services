@@ -1,0 +1,167 @@
+groups:
+  - name: node-exporter.rules
+    rules:
+    - alert: HostUnusualDiskReadRate
+      expr: sum by (instance) (rate(node_disk_read_bytes_total{job="node-exporter"}[60m])) / 1024 / 1024 > 200
+      for: 5m
+      labels:
+        severity: Low
+        support: No
+        jira: Yes
+      annotations:
+        summary: Host unusual disk read rate (instance {{ $labels.instance }})
+        description: "Disk is probably reading too much data (> 200 MB/s)\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+    - alert: HostUnusualDiskWriteRate
+      expr: sum by (instance) (rate(node_disk_written_bytes_total{job="node-exporter"}[60m])) / 1024 / 1024 > 300
+      for: 2m
+      labels:
+        severity: Low
+        support: No
+        jira: Yes
+      annotations:
+        summary: Host unusual disk write rate (instance {{ $labels.instance }})
+        description: "Disk is probably writing too much data (> 50 MB/s)\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+    - alert: HostDiskWillFillIn72Hours
+      expr: (node_filesystem_avail_bytes * 100) / node_filesystem_size_bytes < 10 and ON (instance, device, mountpoint) predict_linear(node_filesystem_avail_bytes{fstype!~"tmpfs"}[1h], 72 * 3600) < 0 and ON (instance, device, mountpoint) node_filesystem_readonly == 0
+      for: 2m
+      labels:
+        severity: Critical
+        support: Yes
+        jira: Yes
+      annotations:
+        summary: Host disk will fill in 72 hours (instance {{ $labels.instance }})
+        description: "Filesystem is predicted to run out of space within the next 72 hours at current write rate\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+  
+    - alert: HostOutOfInodes
+      expr: node_filesystem_files_free{mountpoint ="/rootfs"} / node_filesystem_files{mountpoint="/rootfs"} * 100 < 10 and ON (instance, device, mountpoint) node_filesystem_readonly{mountpoint="/rootfs"} == 0
+      for: 2m
+      labels:
+        severity: Blocker
+        support: Yes
+        jira: Yes      
+      annotations:
+        summary: Host out of inodes (instance {{ $labels.instance }})
+        description: "Disk is almost running out of available inodes (< 10% left)\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+    - alert: HostInodesWillFillIn72Hours
+      expr: node_filesystem_files_free{mountpoint ="/rootfs"} / node_filesystem_files{mountpoint="/rootfs"} * 100 < 10 and predict_linear(node_filesystem_files_free{mountpoint="/rootfs"}[1h], 72 * 3600) < 0 and ON (instance, device, mountpoint) node_filesystem_readonly{mountpoint="/rootfs"} == 0
+      for: 2m
+      labels:
+        severity: Critical
+        support: Yes
+        jira: Yes 
+      annotations:
+        summary: Host inodes will fill in 72 hours (instance {{ $labels.instance }})
+        description: "Filesystem is predicted to run out of inodes within the next 24 hours at current write rate\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+    - alert: HostUnusualDiskReadLatency
+      expr: rate(node_disk_read_time_seconds_total[60m]) / rate(node_disk_reads_completed_total[60m]) > 0.1 and rate(node_disk_reads_completed_total[60m]) > 0
+      for: 2m
+      labels:
+        severity: Low
+        support: No
+        jira: Yes
+      annotations:
+        summary: Host unusual disk read latency (instance {{ $labels.instance }})
+        description: "Disk latency is growing (read operations > 100ms)\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+    - alert: HostUnusualDiskWriteLatency
+      expr: rate(node_disk_write_time_seconds_total[60m]) / rate(node_disk_writes_completed_total[60m]) > 0.1 and rate(node_disk_writes_completed_total[60m]) > 0
+      for: 2m
+      labels:
+
+      annotations:
+        summary: Host unusual disk write latency (instance {{ $labels.instance }})
+        description: "Disk latency is growing (write operations > 100ms)\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+
+    - alert: HostHighCpuLoad
+      expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[30m])) * 100) > 80
+      for: 0m
+      labels:
+        group: DevOps
+        severity: Critical
+        support: Yes
+        jira: Yes
+      annotations:
+        summary: Host high CPU load (instance {{ $labels.instance }})
+        description: "CPU load is > 80%\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+    - alert: HostPhysicalComponentTooHot
+      expr: node_hwmon_temp_celsius > 75
+      for: 60m
+      labels:
+        group: DevOps
+        severity: Low
+        support: No
+        jira: Yes
+      annotations:
+        summary: Host physical component too hot (instance {{ $labels.instance }})
+        description: "Physical hardware component too hot\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+    - alert: HostEdacUncorrectableErrorsDetected
+      expr: node_edac_uncorrectable_errors_total > 0
+      for: 60m
+      labels:
+        group: DevOps
+        severity: Low
+        support: No
+        jira: Yes
+      annotations:
+        summary: Host EDAC Uncorrectable Errors detected (instance {{ $labels.instance }})
+        description: "Host {{ $labels.instance }} has had {{ printf \"%.0f\" $value }} uncorrectable memory errors reported by EDAC in the last 5 minutes.\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+
+
+
+    - alert: HostNetworkBondDegraded
+      expr: (node_bonding_active - node_bonding_slaves) != 0
+      for: 60m
+      labels:
+        group: DevOps
+        severity: Low
+        support: No
+        jira: Yes
+      annotations:
+        summary: Host Network Bond Degraded (instance {{ $labels.instance }})
+        description: "Bond \"{{ $labels.device }}\" degraded on \"{{ $labels.instance }}\".\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+
+    - alert: HostConntrackLimit
+      expr: node_nf_conntrack_entries{job="node-exporter", system="Kubernetes"} / node_nf_conntrack_entries_limit{job="node-exporter", system="Kubernetes"} > 0.8
+      for: 60m
+      labels:
+        group: DevOps
+        severity: Low
+        support: No
+        jira: Yes
+      annotations:
+        summary: Host conntrack limit (instance {{ $labels.instance }})
+        description: "The number of conntrack is approaching limit\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+        
+    - alert: HostClockSkew
+      expr: (node_timex_offset_seconds > 0.05 and deriv(node_timex_offset_seconds[14m]) >= 0) or (node_timex_offset_seconds < -0.05 and deriv(node_timex_offset_seconds[14m]) <= 0)
+      for: 2m
+      labels:
+        group: DevOps
+        severity: Low
+        support: No
+        jira: Yes
+      annotations:
+        summary: Host clock skew (instance {{ $labels.instance }})
+        description: "Clock skew detected. Clock is out of sync. Ensure NTP is configured correctly on this host.\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+    - alert: HostClockNotSynchronising
+      expr: min_over_time(node_timex_sync_status[60m]) == 0 and node_timex_maxerror_seconds >= 16
+      for: 2m
+      labels:
+        group: DevOps
+        severity: Low
+        support: No
+        jira: Yes
+      annotations:
+        summary: Host clock not synchronising (instance {{ $labels.instance }})
+        description: "Clock not synchronising. Ensure NTP is configured on this host.\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
