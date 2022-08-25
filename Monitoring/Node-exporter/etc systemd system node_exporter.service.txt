@@ -6,7 +6,7 @@ After=network-online.target
 User=node_exporter
 Group=node_exporter
 Type=simple
-ExecStart=/usr/local/bin/node_exporter --web.listen-address=:9100 --web.telemetry-path=/metrics --collector.filesystem.ignored-mount-points=^/(sys|proc|dev|run)($|/)
+ExecStart=/usr/local/bin/node_exporter --web.listen-address=:9100 --web.telemetry-path=/metrics --collector.filesystem.ignored-mount-points=^/(sys|proc|dev|run)($|/) --web.config=/opt/node_exporter/configuration.yml
 
 [Install]
 WantedBy=multi-user.target
